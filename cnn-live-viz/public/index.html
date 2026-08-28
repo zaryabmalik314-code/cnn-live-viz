@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CNN Live Visualizer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;background:#050508;color:#e0e0e8;font-family:'Space Grotesk',sans-serif;padding:24px}
+  h1{font-size:2.2rem;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa,#f472b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
+  p{font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:#6b7280;text-align:center;max-width:500px;line-height:1.7}
+  .cards{display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+  .card{display:flex;flex-direction:column;align-items:center;gap:12px;padding:32px 40px;border:1px solid #1e1e2e;border-radius:20px;background:#0a0a12;cursor:pointer;transition:all 0.2s;text-decoration:none;color:inherit;min-width:220px}
+  .card:hover{border-color:#60a5fa;transform:translateY(-4px);box-shadow:0 8px 30px rgba(96,165,250,0.1)}
+  .card .icon{font-size:2.5rem}
+  .card .label{font-size:1.1rem;font-weight:700}
+  .card .desc{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:#6b7280;text-align:center}
+  .footer{font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#3b3b50;text-align:center;margin-top:20px}
+</style>
+</head>
+<body>
+  <h1>CNN Live Visualizer</h1>
+  <p>See how a Convolutional Neural Network processes your handwritten digits in real-time 3D. Draw on your phone, watch the magic on the big screen.</p>
+
+  <div class="cards">
+    <a class="card" href="/display.html">
+      <div class="icon">🖥️</div>
+      <div class="label">Display Mode</div>
+      <div class="desc">Open on PC / projector<br>Shows the 3D CNN visualization</div>
+    </a>
+    <a class="card" href="/draw.html">
+      <div class="icon">📱</div>
+      <div class="label">Draw Mode</div>
+      <div class="desc">Open on phone / tablet<br>Touch to draw digits</div>
+    </a>
+  </div>
+
+  <div class="footer">
+    <p>1. Open Display on your PC → note the room code<br>
+    2. Open Draw on your phone → enter the code<br>
+    3. Draw a digit and watch the network process it</p>
+  </div>
+</body>
+</html>

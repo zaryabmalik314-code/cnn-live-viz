@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Draw — CNN Live</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0a0a0f;color:#e0e0e8;font-family:'Space Grotesk',sans-serif}
+
+  .container{display:flex;flex-direction:column;align-items:center;height:100%;padding:16px;gap:12px}
+
+  .top-bar{text-align:center;width:100%}
+  .top-bar h1{font-size:1.2rem;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .status{font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#6b7280;margin-top:4px}
+  .status.live{color:#34d399}
+
+  /* Join section */
+  .join-section{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:20px}
+  .join-section label{font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em}
+  .code-input{font-family:'JetBrains Mono',monospace;font-size:2rem;text-align:center;width:200px;padding:12px;border-radius:12px;border:2px solid #2a2a3a;background:#111118;color:#60a5fa;letter-spacing:0.3em;outline:none}
+  .code-input:focus{border-color:#60a5fa}
+  .join-btn{font-family:'JetBrains Mono',monospace;font-size:0.9rem;padding:12px 32px;border:none;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;cursor:pointer;font-weight:600}
+
+  /* Canvas */
+  .canvas-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;gap:10px;display:none}
+  #drawCanvas{border-radius:16px;border:2px solid #1e1e2e;background:#000;touch-action:none;max-width:90vw;max-height:60vh}
+  .btn-row{display:flex;gap:10px}
+  .btn{font-family:'JetBrains Mono',monospace;font-size:0.85rem;padding:12px 28px;border-radius:10px;border:1px solid #2a2a3a;background:#16161e;color:#a0a0b0;cursor:pointer}
+  .btn:active{background:#2a2a3a}
+  .btn.danger{border-color:#ef4444;color:#ef4444}
+
+  .prediction-display{font-family:'JetBrains Mono',monospace;font-size:1.8rem;font-weight:700;color:#60a5fa;min-height:40px;text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="top-bar">
+    <h1>CNN Live — Draw Pad</h1>
+    <div class="status" id="status">Enter room code to connect</div>
+  </div>
+
+  <div class="join-section" id="joinSection">
+    <label>Room Code</label>
+    <input class="code-input" id="codeInput" maxlength="4" placeholder="----" autocomplete="off" inputmode="numeric">
+    <button class="join-btn" onclick="joinRoom()">Connect</button>
+  </div>
+
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="drawCanvas" width="280" height="280"></canvas>
+    <div class="btn-row">
+      <button class="btn danger" onclick="clearAll()">Clear</button>
+    </div>
+    <div class="prediction-display" id="prediction"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let socket = null;
+let drawing = false;
+let lastX, lastY;
+
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = '#000';
+ctx.fillRect(0,0,280,280);
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+ctx.strokeStyle = '#fff';
+ctx.lineWidth = 20;
+
+function joinRoom() {
+  const code = document.getElementById('codeInput').value.trim();
+  if (code.length < 2) return;
+  socket = io();
+  socket.emit('join-room', code);
+
+  socket.on('connect', () => {
+    document.getElementById('status').textContent = `Connected to room ${code}`;
+    document.getElementById('status').className = 'status live';
+    document.getElementById('joinSection').style.display = 'none';
+    document.getElementById('canvasWrap').style.display = 'flex';
+  });
+
+  socket.on('disconnect', () => {
+    document.getElementById('status').textContent = 'Disconnected';
+    document.getElementById('status').className = 'status';
+  });
+}
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const t = e.touches ? e.touches[0] : e;
+  return [(t.clientX - r.left) * 280/r.width, (t.clientY - r.top) * 280/r.height];
+}
+
+function sendPixels() {
+  const img = ctx.getImageData(0,0,280,280);
+  // Downscale to 28x28
+  const pixels = [];
+  const cell = 10;
+  for (let r = 0; r < 28; r++) {
+    for (let c = 0; c < 28; c++) {
+      let sum = 0, count = 0;
+      for (let y = r*cell; y < (r+1)*cell; y++)
+        for (let x = c*cell; x < (c+1)*cell; x++) {
+          sum += img.data[(y*280+x)*4];
+          count++;
+        }
+      pixels.push(sum/count/255);
+    }
+  }
+  if (socket) socket.emit('pixel-update', pixels);
+}
+
+canvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  drawing = true;
+  [lastX, lastY] = getPos(e);
+});
+
+canvas.addEventListener('pointermove', e => {
+  e.preventDefault();
+  if (!drawing) return;
+  const [x,y] = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  lastX = x; lastY = y;
+
+  // Send draw stroke for live mirroring
+  if (socket) socket.emit('draw-data', {x1:lastX,y1:lastY,x2:x,y2:y});
+
+  // Debounced pixel send
+  clearTimeout(window._pixelTimer);
+  window._pixelTimer = setTimeout(sendPixels, 80);
+});
+
+canvas.addEventListener('pointerup', e => {
+  drawing = false;
+  sendPixels();
+});
+canvas.addEventListener('pointerleave', () => { drawing = false; });
+
+function clearAll() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,280,280);
+  if (socket) socket.emit('clear-canvas');
+  document.getElementById('prediction').textContent = '';
+}
+</script>
+</body>
+</html>
