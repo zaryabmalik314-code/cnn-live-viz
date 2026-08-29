@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INFERENCE LAB — CNN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;500;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#04070d;
+    --phos:#3dfaff;
+    --phos-dim:#0d5f6b;
+    --amber:#ffb547;
+    --magenta:#ff3d9a;
+    --violet:#8b6bff;
+    --grid:rgba(61,250,255,.07);
+    --text:#c8e6ec;
+    --mute:#3d5a66;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--void);color:var(--text);
+    font-family:'JetBrains Mono',monospace;-webkit-font-smoothing:antialiased}
+
+  .bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                     linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:64px 64px;
+    -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 45%,#000 20%,transparent 78%);
+    mask-image:radial-gradient(ellipse 90% 70% at 50% 45%,#000 20%,transparent 78%)}
+  .scanlines{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.4;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
+  .vignette{position:fixed;inset:0;z-index:59;pointer-events:none;
+    background:radial-gradient(ellipse 75% 65% at 50% 50%,transparent 40%,rgba(2,4,9,.9) 100%)}
+
+  .bracket{position:fixed;width:26px;height:26px;z-index:40;pointer-events:none;
+    border-color:var(--phos);opacity:.55}
+  .bk-tl{top:16px;left:16px;border-top:2px solid;border-left:2px solid}
+  .bk-tr{top:16px;right:16px;border-top:2px solid;border-right:2px solid}
+  .bk-bl{bottom:16px;left:16px;border-bottom:2px solid;border-left:2px solid}
+  .bk-br{bottom:16px;right:16px;border-bottom:2px solid;border-right:2px solid}
+
+  .rail{position:fixed;top:0;left:0;right:0;z-index:30;
+    display:flex;align-items:flex-start;justify-content:space-between;
+    padding:30px 46px 0;pointer-events:none}
+  .brandline{display:flex;align-items:baseline;gap:14px}
+  .glyph{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:1.55rem;
+    letter-spacing:.16em;color:var(--phos);text-shadow:0 0 18px rgba(61,250,255,.45)}
+  .sub{font-size:.6rem;letter-spacing:.34em;color:var(--mute);text-transform:uppercase}
+  .telemetry{text-align:right;font-size:.62rem;letter-spacing:.16em;line-height:2.1}
+  .telemetry .k{color:var(--mute);text-transform:uppercase}
+  .telemetry .v{color:var(--phos)}
+  .link-state{display:inline-flex;align-items:center;gap:7px;color:var(--mute)}
+  .link-state .dot{width:6px;height:6px;border-radius:50%;background:var(--mute)}
+  .link-state.on{color:var(--amber)}
+  .link-state.on .dot{background:var(--amber);box-shadow:0 0 10px var(--amber);
+    animation:blip 1.6s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+
+  #pair{position:fixed;inset:0;z-index:50;background:rgba(4,7,13,.96);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px}
+  #pair .eyebrow{font-size:.62rem;letter-spacing:.4em;color:var(--mute);text-transform:uppercase}
+  .code-frame{position:relative;padding:26px 52px;border:1px solid var(--phos-dim);
+    background:linear-gradient(180deg,rgba(61,250,255,.05),transparent)}
+  .code-frame::before,.code-frame::after{content:'';position:absolute;width:14px;height:14px;
+    border-color:var(--phos)}
+  .code-frame::before{top:-1px;left:-1px;border-top:2px solid;border-left:2px solid}
+  .code-frame::after{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid}
+  .code-val{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:4.4rem;
+    letter-spacing:.28em;color:var(--phos);text-shadow:0 0 34px rgba(61,250,255,.5);
+    padding-left:.28em}
+  .pair-url{font-size:.76rem;letter-spacing:.08em;color:var(--violet)}
+  .await{font-size:.62rem;letter-spacing:.28em;color:var(--mute);text-transform:uppercase;
+    display:flex;gap:10px;align-items:center}
+  .await .bar{width:80px;height:2px;background:var(--phos-dim);overflow:hidden;position:relative}
+  .await .bar::after{content:'';position:absolute;top:0;bottom:0;left:0;width:34%;background:var(--phos);
+    animation:sweepbar 1.5s cubic-bezier(.6,0,.4,1) infinite;box-shadow:0 0 10px var(--phos)}
+  @keyframes sweepbar{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+
+  #stage{position:fixed;inset:0;z-index:10}
+
+  .tags{position:fixed;left:0;right:0;bottom:210px;z-index:25;
+    display:flex;justify-content:space-between;padding:0 11%;pointer-events:none}
+  .tag{text-align:center;opacity:.72}
+  .tag .idx{font-size:.54rem;letter-spacing:.2em;color:var(--phos-dim)}
+  .tag .nm{font-size:.6rem;letter-spacing:.2em;color:var(--mute);text-transform:uppercase;margin-top:3px}
+  .tag .dim{font-size:.54rem;letter-spacing:.12em;color:var(--phos);opacity:.65;margin-top:2px}
+
+  .console{position:fixed;left:0;right:0;bottom:0;z-index:30;
+    display:grid;grid-template-columns:150px 220px 1fr;gap:34px;align-items:end;
+    padding:0 46px 34px;
+    background:linear-gradient(0deg,rgba(4,7,13,.97) 55%,transparent)}
+  .cap{font-size:.55rem;letter-spacing:.26em;color:var(--mute);text-transform:uppercase;
+    display:block;margin-bottom:9px}
+
+  .monitor{position:relative;width:110px;height:110px;border:1px solid var(--phos-dim)}
+  .monitor canvas{width:100%;height:100%;display:block;image-rendering:pixelated;
+    filter:drop-shadow(0 0 8px rgba(61,250,255,.3))}
+  .monitor .xh{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,transparent 49.6%,rgba(61,250,255,.14) 49.6% 50.4%,transparent 50.4%),
+               linear-gradient(0deg,transparent 49.6%,rgba(61,250,255,.14) 49.6% 50.4%,transparent 50.4%)}
+
+  .verdict{display:flex;align-items:flex-end;gap:16px}
+  .digit{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:6.2rem;line-height:.78;
+    color:var(--phos);text-shadow:0 0 40px rgba(61,250,255,.55);transition:opacity .2s,color .2s}
+  .digit.idle{color:var(--mute);text-shadow:none;opacity:.35}
+  .vmeta{padding-bottom:10px}
+  .vmeta .pct{font-size:1rem;color:var(--amber);letter-spacing:.06em}
+  .vmeta .lbl{font-size:.55rem;letter-spacing:.24em;color:var(--mute);text-transform:uppercase;margin-top:4px}
+
+  .hist{display:flex;gap:5px;align-items:flex-end;height:88px}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;
+    height:100%;justify-content:flex-end}
+  .bar-o{width:100%;height:100%;display:flex;align-items:flex-end;
+    border-bottom:1px solid rgba(61,250,255,.18)}
+  .bar-i{width:100%;min-height:2px;height:2px;
+    background:linear-gradient(180deg,var(--phos-dim),rgba(61,250,255,.1));
+    transition:height .28s cubic-bezier(.4,0,.2,1),background .28s,box-shadow .28s}
+  .bar-i.lead{background:linear-gradient(180deg,var(--phos),var(--violet));
+    box-shadow:0 0 16px rgba(61,250,255,.55)}
+  .col .n{font-size:.62rem;color:var(--mute)}
+  .col.lead .n{color:var(--phos)}
+
+  @media(max-width:900px){
+    .console{grid-template-columns:1fr;gap:16px;padding:0 24px 22px}
+    .tags{display:none}
+    .monitor{width:78px;height:78px}
+    .digit{font-size:4rem}
+    .rail{padding:20px 26px 0}
+    .glyph{font-size:1.1rem}
+  }
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<div class="bracket bk-tl"></div><div class="bracket bk-tr"></div>
+<div class="bracket bk-bl"></div><div class="bracket bk-br"></div>
+
+<canvas id="stage"></canvas>
+
+<header class="rail">
+  <div class="brandline">
+    <span class="glyph">INFERENCE LAB</span>
+    <span class="sub">convolutional pipeline</span>
+  </div>
+  <div class="telemetry">
+    <div><span class="k">channel</span> <span class="v" id="tRoom">····</span></div>
+    <div><span class="link-state" id="tLink"><span class="dot"></span><span id="tLinkTxt">standby</span></span></div>
+    <div><span class="k">params</span> <span class="v" id="tParams">—</span></div>
+  </div>
+</header>
+
+<div id="pair">
+  <div class="eyebrow">pair a drawing surface</div>
+  <div class="code-frame"><div class="code-val" id="pairCode">····</div></div>
+  <div class="pair-url" id="pairUrl">—</div>
+  <div class="await"><span class="bar"></span><span>awaiting handshake</span></div>
+</div>
+
+<div class="tags" id="tags"></div>
+
+<div class="console">
+  <div>
+    <span class="cap">input · 28²</span>
+    <div class="monitor"><canvas id="mon" width="28" height="28"></canvas><div class="xh"></div></div>
+  </div>
+  <div>
+    <span class="cap">classification</span>
+    <div class="verdict">
+      <div class="digit idle" id="vDigit">—</div>
+      <div class="vmeta"><div class="pct" id="vPct">·····</div><div class="lbl">confidence</div></div>
+    </div>
+  </div>
+  <div>
+    <span class="cap">softmax distribution</span>
+    <div class="hist" id="hist"></div>
+  </div>
+</div>
+
+<div class="vignette"></div>
+<div class="scanlines"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const ROOM = String(Math.floor(1000+Math.random()*9000));
+pairCode.textContent = ROOM;
+tRoom.textContent = ROOM;
+pairUrl.textContent = location.origin + '/draw.html';
+
+const socket = io();
+socket.emit('create-room', ROOM);
+socket.on('drawer-connected', ()=>{
+  document.getElementById('pair').style.display='none';
+  tLink.classList.add('on'); tLinkTxt.textContent='linked';
+});
+socket.on('peer-disconnected', ()=>{
+  tLink.classList.remove('on'); tLinkTxt.textContent='dropped';
+});
+
+let MODEL=null;
+fetch('/model.json').then(r=>r.json()).then(m=>{
+  MODEL=m;
+  const p=m.reduce((s,l)=>s+l.w.length*l.w[0].length+l.b.length,0);
+  tParams.textContent=(p/1000).toFixed(0)+'K';
+});
+
+function centerDigit(px){
+  let r0=27,r1=0,c0=27,c1=0;
+  for(let r=0;r<28;r++)for(let c=0;c<28;c++)
+    if(px[r*28+c]>0.1){r0=Math.min(r0,r);r1=Math.max(r1,r);c0=Math.min(c0,c);c1=Math.max(c1,c)}
+  if(r0>r1) return {flat:new Array(784).fill(0),blank:true};
+  const out=new Array(784).fill(0);
+  const oR=((28-(r1-r0))>>1)-r0, oC=((28-(c1-c0))>>1)-c0;
+  for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+    const nr=r+oR,nc=c+oC;
+    if(nr>=0&&nr<28&&nc>=0&&nc<28) out[nr*28+nc]=px[r*28+c];
+  }
+  return {flat:out,blank:false};
+}
+
+function softmax(z){const m=Math.max(...z),e=z.map(v=>Math.exp(v-m)),s=e.reduce((a,b)=>a+b);return e.map(v=>v/s)}
+
+function predict(flat){
+  if(!MODEL) return {probs:new Array(10).fill(.1),acts:[]};
+  let a=flat, acts=[];
+  for(let L=0;L<MODEL.length;L++){
+    const w=MODEL[L].w,b=MODEL[L].b,n=b.length,o=new Array(n);
+    for(let j=0;j<n;j++){let s=b[j];for(let i=0;i<a.length;i++)s+=w[i][j]*a[i];
+      o[j]=(L<MODEL.length-1)?Math.max(0,s):s}
+    if(L<MODEL.length-1) acts.push(o);
+    a=o;
+  }
+  return {probs:softmax(a),acts};
+}
+
+const K1=[[[-1,0,1],[-2,0,2],[-1,0,1]],[[-1,-2,-1],[0,0,0],[1,2,1]],
+          [[0,1,0],[1,-4,1],[0,1,0]],[[1,0,-1],[0,0,0],[-1,0,1]],
+          [[0,-1,0],[-1,5,-1],[0,-1,0]],[[1,1,1],[1,-8,1],[1,1,1]]];
+const K2=[[[1,0,-1],[0,1,0],[-1,0,1]],[[0,1,0],[1,1,1],[0,1,0]],
+          [[-1,1,-1],[1,1,1],[-1,1,-1]],[[1,1,0],[1,0,-1],[0,-1,-1]],
+          [[0,0,1],[0,1,0],[1,0,0]],[[1,-1,1],[-1,1,-1],[1,-1,1]]];
+
+function conv(g,k,R,C){
+  const oh=R-2,ow=C-2,o=[];
+  for(let r=0;r<oh;r++){const row=[];
+    for(let c=0;c<ow;c++){let s=0;
+      for(let a=0;a<3;a++)for(let b=0;b<3;b++)s+=g[r+a][c+b]*k[a][b];
+      row.push(Math.max(0,s))}
+    o.push(row)}
+  return o;
+}
+function pool(g){
+  const o=[];
+  for(let r=0;r+1<g.length;r+=2){const row=[];
+    for(let c=0;c+1<g[0].length;c+=2)row.push(Math.max(g[r][c],g[r][c+1],g[r+1][c],g[r+1][c+1]));
+    o.push(row)}
+  return o;
+}
+function to12(flat){
+  const g=[];const cell=28/12;
+  for(let r=0;r<12;r++){const row=[];
+    for(let c=0;c<12;c++){let s=0,n=0;
+      for(let y=Math.floor(r*cell);y<Math.min(Math.ceil((r+1)*cell),28);y++)
+        for(let x=Math.floor(c*cell);x<Math.min(Math.ceil((c+1)*cell),28);x++){s+=flat[y*28+x];n++}
+      row.push(s/n)}
+    g.push(row)}
+  return g;
+}
+
+const cv=document.getElementById('stage');
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x04070d,0.026);
+const cam=new THREE.PerspectiveCamera(46,innerWidth/innerHeight,0.1,300);
+cam.position.set(0,3.4,25);
+const rend=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+rend.setSize(innerWidth,innerHeight);
+rend.setPixelRatio(Math.min(devicePixelRatio,2));
+rend.setClearColor(0x000000,0);
+
+scene.add(new THREE.AmbientLight(0x1a3a44,0.9));
+const key=new THREE.DirectionalLight(0x3dfaff,0.7); key.position.set(6,10,12); scene.add(key);
+const rim=new THREE.PointLight(0xff3d9a,0.5,45); rim.position.set(-9,2,6); scene.add(rim);
+
+const XS=[-10.5,-5.6,-0.6,4.2,9.6];
+const LAYER_META=[
+  {idx:'00',nm:'input',dim:'28×28'},
+  {idx:'01',nm:'conv · edges',dim:'6@10²'},
+  {idx:'02',nm:'conv · shapes',dim:'6@8²'},
+  {idx:'03',nm:'maxpool',dim:'6@4²'},
+  {idx:'04',nm:'dense',dim:'softmax'}
+];
+const groups=XS.map(x=>{const g=new THREE.Group();g.position.x=x;scene.add(g);return g});
+
+document.getElementById('tags').innerHTML=LAYER_META.map(m=>
+  `<div class="tag"><div class="idx">${m.idx}</div><div class="nm">${m.nm}</div><div class="dim">${m.dim}</div></div>`
+).join('');
+
+const fMat=new THREE.LineBasicMaterial({color:0x3dfaff,transparent:true,opacity:0.045});
+for(let L=0;L<4;L++){
+  for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++){
+    const g=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(XS[L]+1.5,i*0.55,0),
+      new THREE.Vector3(XS[L+1]-1.5,j*0.55,0)]);
+    scene.add(new THREE.Line(g,fMat));
+  }
+}
+
+function purge(g){while(g.children.length){const c=g.children[0];
+  c.geometry&&c.geometry.dispose();c.material&&c.material.dispose();g.remove(c)}}
+
+function plate(grid,rows,cols,cell,hue,yOff,sat){
+  const grp=new THREE.Group();
+  let mx=0;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)mx=Math.max(mx,Math.abs(grid[r][c]));
+  if(!mx)mx=1;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const v=Math.abs(grid[r][c])/mx;
+    if(v<0.06)continue;
+    const h=0.06+v*0.5;
+    const col=new THREE.Color().setHSL(hue/360,sat,0.16+v*0.5);
+    const m=new THREE.Mesh(
+      new THREE.BoxGeometry(cell*0.82,h,cell*0.82),
+      new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:v*0.75,
+        transparent:true,opacity:0.55+v*0.45,shininess:60}));
+    m.position.set((c-cols/2)*cell,h/2+yOff,(r-rows/2)*cell);
+    grp.add(m);
+  }
+  return grp;
+}
+
+function denseRing(acts){
+  const grp=new THREE.Group();
+  const a=acts[acts.length-1]||[];
+  const mx=Math.max(...a,0.01);
+  const N=Math.min(a.length,72);
+  for(let i=0;i<N;i++){
+    const v=a[i]/mx, h=0.12+v*3.4;
+    const col=new THREE.Color().setHSL(0.52-v*0.12,0.85,0.2+v*0.45);
+    const m=new THREE.Mesh(new THREE.BoxGeometry(0.09,h,0.09),
+      new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:v*0.9}));
+    const ang=(i/N)*Math.PI*2, R=1.35;
+    m.position.set(Math.cos(ang)*R,h/2-1.6,Math.sin(ang)*R);
+    grp.add(m);
+  }
+  return grp;
+}
+
+const sweep=new THREE.Mesh(
+  new THREE.PlaneGeometry(0.06,9),
+  new THREE.MeshBasicMaterial({color:0x3dfaff,transparent:true,opacity:0.2,side:THREE.DoubleSide}));
+sweep.rotation.y=Math.PI/2; scene.add(sweep);
+
+const hist=document.getElementById('hist');
+for(let i=0;i<10;i++){
+  const d=document.createElement('div');
+  d.className='col'; d.id='col'+i;
+  d.innerHTML=`<div class="bar-o"><div class="bar-i" id="b${i}"></div></div><div class="n">${i}</div>`;
+  hist.appendChild(d);
+}
+function paintHist(p){
+  const best=p.indexOf(Math.max(...p));
+  for(let i=0;i<10;i++){
+    const b=document.getElementById('b'+i), col=document.getElementById('col'+i);
+    b.style.height=Math.max(2,p[i]*86)+'px';
+    const lead=(i===best&&p[i]>0.12);
+    b.classList.toggle('lead',lead); col.classList.toggle('lead',lead);
+  }
+}
+paintHist(new Array(10).fill(0));
+
+const mon=document.getElementById('mon');
+
+function setVerdict(p){
+  if(!p){vDigit.textContent='—';vDigit.classList.add('idle');vPct.textContent='·····';return}
+  const b=p.indexOf(Math.max(...p));
+  if(p[b]<0.12){vDigit.textContent='?';vDigit.classList.add('idle');vPct.textContent='low';return}
+  vDigit.textContent=b; vDigit.classList.remove('idle');
+  vPct.textContent=(p[b]*100).toFixed(1)+'%';
+}
+
+function update(px){
+  const {flat,blank}=centerDigit(px);
+
+  const mc=mon.getContext('2d'), im=mc.createImageData(28,28);
+  for(let i=0;i<784;i++){
+    const v=Math.floor(flat[i]*255);
+    im.data[i*4]=Math.floor(v*0.24); im.data[i*4+1]=v; im.data[i*4+2]=Math.floor(v*0.98);
+    im.data[i*4+3]=255;
+  }
+  mc.putImageData(im,0,0);
+
+  if(blank){ groups.forEach(purge); setVerdict(null); paintHist(new Array(10).fill(0)); return; }
+
+  const {probs,acts}=predict(flat);
+  const g12=to12(flat);
+  const c1=K1.map(k=>conv(g12,k,12,12));
+  const c2=c1.map((m,i)=>conv(m,K2[i%K2.length],10,10));
+  const pl=c2.map(pool);
+
+  purge(groups[0]); groups[0].add(plate(g12,12,12,0.19,186,0,0.9));
+  purge(groups[1]); c1.forEach((m,i)=>groups[1].add(plate(m,10,10,0.20,265,i*0.62-1.9,0.8)));
+  purge(groups[2]); c2.forEach((m,i)=>groups[2].add(plate(m,8,8,0.24,318,i*0.68-2.1,0.75)));
+  purge(groups[3]); pl.forEach((m,i)=>groups[3].add(plate(m,4,4,0.38,38,i*0.74-2.3,0.85)));
+  purge(groups[4]); groups[4].add(denseRing(acts));
+
+  paintHist(probs);
+  setVerdict(probs);
+}
+
+socket.on('pixel-update',update);
+socket.on('clear-canvas',()=>{
+  groups.forEach(purge); setVerdict(null); paintHist(new Array(10).fill(0));
+  mon.getContext('2d').clearRect(0,0,28,28);
+});
+
+let t=0;
+(function loop(){
+  requestAnimationFrame(loop);
+  t+=0.004;
+  cam.position.x=Math.sin(t*0.55)*2.6;
+  cam.position.y=3.4+Math.sin(t*0.8)*0.7;
+  cam.lookAt(0,-0.4,0);
+  groups.forEach((g,i)=>{g.rotation.y=Math.sin(t*1.1+i*0.7)*0.075});
+  sweep.position.x=((t*7)%30)-15;
+  rend.render(scene,cam);
+})();
+
+addEventListener('resize',()=>{
+  cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix();
+  rend.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
